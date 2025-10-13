@@ -81,14 +81,32 @@ export default function DirectCall() {
 
   // Error state
   if (error) {
+    const isDatabaseError = error.toLowerCase().includes("database") || 
+                           error.toLowerCase().includes("connection") ||
+                           error.toLowerCase().includes("failed to fetch");
+    
     return (
       <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-card border border-border rounded-2xl p-8 text-center shadow-2xl">
-          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-destructive" />
+          <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6 relative">
+            <AlertCircle className="w-10 h-10 text-destructive" />
+            {isDatabaseError && (
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-destructive rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-destructive-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+              </div>
+            )}
           </div>
-          <h2 className="text-xl font-bold mb-2">Ainager Not Found</h2>
-          <p className="text-muted-foreground mb-4">{error}</p>
+          <h2 className="text-xl font-bold mb-3">
+            {isDatabaseError ? "Database Connection Error" : "Ainager Not Found"}
+          </h2>
+          <p className="text-muted-foreground mb-2">{error}</p>
+          {isDatabaseError && (
+            <p className="text-sm text-muted-foreground/80 mb-4">
+              The server lost connection to the database. This may be temporary.
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             Redirecting to home page...
           </p>
@@ -124,4 +142,6 @@ export default function DirectCall() {
 
   return null;
 }
+
+
 

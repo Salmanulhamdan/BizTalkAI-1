@@ -74,7 +74,7 @@ export class MemStorage implements IStorage {
       const { like, and, or } = await import('drizzle-orm');
       
       // Build where conditions
-      let whereConditions: any = inArray(chatAinagerTable.ainagerType, ["company", "hainager", "Hainager"]);
+      let whereConditions: any = eq(chatAinagerTable.ainagerType, "Hainager");
       
       // Add search condition if search term exists
       if (search.trim()) {
@@ -130,10 +130,11 @@ export class MemStorage implements IStorage {
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error fetching ainagers:", error.message);
+        throw new Error(`Database connection error: ${error.message}`);
       } else {
         console.error("Error fetching ainagers:", error);
+        throw new Error("Database connection error: Unable to fetch ainagers");
       }
-      return { ainagers: [], hasMore: false, total: 0 };
     }
   }
 
@@ -170,10 +171,11 @@ export class MemStorage implements IStorage {
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error fetching ainager by ID:", error.message);
+        throw new Error(`Database connection error: ${error.message}`);
       } else {
         console.error("Error fetching ainager by ID:", error);
+        throw new Error("Database connection error: Unable to fetch ainager");
       }
-      return undefined;
     }
   }
 }

@@ -86,6 +86,11 @@ export default function Home() {
   }
 
   if (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const isDatabaseError = errorMessage.toLowerCase().includes("database") || 
+                           errorMessage.toLowerCase().includes("connection") ||
+                           errorMessage.toLowerCase().includes("fetch");
+    
     return (
       <div className="min-h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
         <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
@@ -98,13 +103,39 @@ export default function Home() {
             />
           </div>
           <div className="flex-1 flex flex-col items-center justify-center py-20 px-6">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-6 relative">
+              <svg className="w-10 h-10 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
+              {isDatabaseError && (
+                <div className="absolute -top-1 -right-1 w-6 h-6 bg-destructive rounded-full flex items-center justify-center">
+                  <svg className="w-4 h-4 text-destructive-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                </div>
+              )}
             </div>
-            <p className="text-destructive font-semibold text-center">Failed to load assistants</p>
-            <p className="text-sm text-muted-foreground mt-2 text-center">Please check your connection and try again</p>
+            <p className="text-destructive font-semibold text-center text-lg mb-2">
+              {isDatabaseError ? "Database Connection Error" : "Failed to Load Assistants"}
+            </p>
+            <p className="text-sm text-muted-foreground text-center max-w-xs">
+              {isDatabaseError 
+                ? "The server lost connection to the database. This may be temporary."
+                : "Unable to fetch assistants. Please check your connection."
+              }
+            </p>
+            <div className="mt-6 p-3 bg-muted/50 rounded-lg max-w-xs">
+              <p className="text-xs text-muted-foreground text-center font-mono break-all">
+                {errorMessage}
+              </p>
+            </div>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="default"
+              className="mt-6"
+            >
+              Retry Connection
+            </Button>
           </div>
         </main>
       </div>
@@ -124,6 +155,36 @@ export default function Home() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
+          {/* Inline Error Banner (shown when there's data but pagination/refresh fails) */}
+          {error && allAinagers.length > 0 && (
+            <div className="mx-4 mt-4 mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center mt-0.5">
+                  <svg className="w-3 h-3 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-destructive">Connection Error</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {error instanceof Error && error.message.toLowerCase().includes("database")
+                      ? "Database connection lost. Showing cached results."
+                      : "Unable to fetch new data. Showing cached results."
+                    }
+                  </p>
+                </div>
+                <Button
+                  onClick={() => window.location.reload()}
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                >
+                  Retry
+                </Button>
+              </div>
+            </div>
+          )}
+          
           {allAinagers.length === 0 && !isLoading && debouncedSearch ? (
             <div className="flex flex-col items-center justify-center py-20 px-6">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">

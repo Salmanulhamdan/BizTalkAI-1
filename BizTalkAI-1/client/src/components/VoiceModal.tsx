@@ -310,7 +310,7 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
                 </h2>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Waves className="w-3 h-3" />
-                  AI Voice Assistant
+                  Enterprise Friend Ainager
                 </p>
               </div>
             </div>
@@ -332,7 +332,7 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
             <div className="flex items-center justify-center gap-2">
               <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
               <p className="text-sm text-primary font-medium" data-testid="status-connecting">
-                Establishing connection...
+                Dialing...
               </p>
             </div>
           </div>

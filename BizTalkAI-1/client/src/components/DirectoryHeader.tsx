@@ -47,7 +47,7 @@ export default function DirectoryHeader() {
             >
               {isFriend ? "Friend" : "Front"}
             </span>{" "}
-            AI Manager
+            Ainager
           </p>
         </div>
       </div>
