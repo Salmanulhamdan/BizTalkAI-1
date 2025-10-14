@@ -2,6 +2,7 @@ import { X, Mic, MicOff, Volume2, VolumeX, Phone, Clock, Waves } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { useWebRTCVoice } from "@/hooks/useWebRTCVoice";
+import { formatAinagerName } from "@/lib/utils";
 
 import { type Ainager } from "@shared/schema";
 
@@ -235,7 +236,8 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
 
   if (!isOpen) return null;
 
-  const companyInitial = ainager.ainagerName.charAt(0).toUpperCase();
+  const displayName = formatAinagerName(ainager.ainagerName);
+  const companyInitial = displayName.charAt(0).toUpperCase();
   const content = getCompanyContent(ainager.ainagerName);
 
   // Determine visual state based on connection state
@@ -306,7 +308,7 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold tracking-tight" data-testid="text-company-name">
-                  {ainager.ainagerName}
+                  {displayName}
                 </h2>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Waves className="w-3 h-3" />

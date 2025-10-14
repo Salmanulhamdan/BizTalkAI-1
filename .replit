@@ -33,6 +33,10 @@ outputType = "webview"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 36169
+externalPort = 3000
+
 [deployment]
 deploymentTarget = "autoscale"
 run = ["sh", "-c", "cd BizTalkAI-1 && npm run start"]
