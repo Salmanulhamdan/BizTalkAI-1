@@ -21,13 +21,16 @@ export default function Home() {
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchValue);
-      setPage(1); // Reset to page 1 on new search
-      setAllAinagers([]); // Clear accumulated data on new search
+      // Only update if search value actually changed
+      if (searchValue !== debouncedSearch) {
+        setDebouncedSearch(searchValue);
+        setPage(1); // Reset to page 1 on new search
+        setAllAinagers([]); // Clear accumulated data on new search
+      }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [searchValue]);
+  }, [searchValue, debouncedSearch]);
   
   // Accumulate ainagers as pages load
   useEffect(() => {
@@ -35,7 +38,12 @@ export default function Home() {
       if (page === 1) {
         setAllAinagers(data.ainagers);
       } else {
-        setAllAinagers(prev => [...prev, ...data.ainagers]);
+        // Dedupe by ainagerId to prevent duplicate key warnings
+        setAllAinagers(prev => {
+          const existingIds = new Set(prev.map(a => a.ainagerId));
+          const newAinagers = data.ainagers.filter(a => !existingIds.has(a.ainagerId));
+          return [...prev, ...newAinagers];
+        });
       }
     }
   }, [data, page]);
@@ -167,7 +175,7 @@ export default function Home() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-destructive">Connection Error</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {error instanceof Error && error.message.toLowerCase().includes("database")
+                    {(error as Error)?.message?.toLowerCase().includes("database")
                       ? "Database connection lost. Showing cached results."
                       : "Unable to fetch new data. Showing cached results."
                     }
