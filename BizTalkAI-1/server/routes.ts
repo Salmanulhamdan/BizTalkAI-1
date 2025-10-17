@@ -30,7 +30,9 @@ function getCompanyInstructions(company: string): string {
     baseInstructions += `You provide professional business services with a customer-focused approach. Help callers with their inquiries and provide information about your services.`;
   }
 
-  baseInstructions += ` Be conversational, warm, and helpful. Answer questions clearly and concisely. Since this is a demo, you can provide reasonable and professional responses based on the company name and type. Always mention that we are located in Dubai when relevant.`;
+  baseInstructions += ` Be conversational, warm, and helpful. Answer questions clearly and concisely. Since this is a demo, you can provide reasonable and professional responses based on the company name and type. Always mention that we are located in Dubai when relevant.
+
+IMPORTANT: When the call starts, immediately greet the caller and briefly introduce yourself and what you can help with. Start the conversation proactively with a warm welcome.`;
 
   return baseInstructions;
 }
@@ -128,7 +130,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Session] Using fallback instructions for "${company}": ${instructions.substring(0, 100)}...`);
       }
       
+      // Add welcome message directive based on the ainager instruction
       if (instructions) {
+        // Only add if not already present
+        if (!instructions.includes("When the call starts")) {
+          instructions += `\n\nIMPORTANT: When the call starts, immediately greet the caller with a warm welcome and briefly introduce yourself based on your role and capabilities described above. Use the information from your instructions to explain what you can help with.`;
+        }
         sessionBody.instructions = instructions;
       } else {
         console.log('[Session] No instructions found, using default behavior');
