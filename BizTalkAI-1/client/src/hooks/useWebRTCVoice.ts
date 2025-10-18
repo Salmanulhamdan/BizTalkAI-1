@@ -41,6 +41,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const latencyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopSessionRef = useRef<(() => void) | null>(null);
+  const hasReceivedWelcomeRef = useRef<boolean>(false);
   
   // ✅ SESSION TIMEOUT SAFEGUARDS - Prevents runaway costs
   // Track last activity time to detect idle sessions
@@ -261,6 +262,13 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
             if (transcript) {
               logActivity(`AI transcript: ${transcript}`);
               addTranscriptionMessage("Efa", transcript);
+              
+              // First AI message received - update status to "connected"
+              if (!hasReceivedWelcomeRef.current) {
+                hasReceivedWelcomeRef.current = true;
+                updateConnectionStatus("connected");
+                logActivity("Welcome message received - connection ready");
+              }
             }
           } else if (data.type === "response.done") {
             // AI response completed - check if we have a transcript
@@ -298,35 +306,20 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
         logActivity(`Connection state: ${pc.connectionState}`);
         
         if (pc.connectionState === "connected") {
-          updateConnectionStatus("connected");
+          // Keep status as "connecting" until AI's welcome message arrives
+          // updateConnectionStatus will be called when first AI message is received
           setState(prev => ({ 
             ...prev, 
             isSessionActive: true, 
             sessionId: session.id || `sess_${Math.random().toString(36).substr(2, 9)}`,
           }));
           
-          // Add initial greeting from EFA
-          const companyLower = company.toLowerCase();
-          let greeting = "Hello! Thank you for calling. How may I assist you today?";
-          
-          if (companyLower.includes("restaurant")) {
-            greeting = "Good day! Thank you for calling. What can I do for you?";
-          } else if (companyLower.includes("hotel")) {
-            greeting = "Welcome! Thank you for contacting us. How can I help?";
-          } else if (companyLower.includes("clinic") || companyLower.includes("health")) {
-            greeting = "Hello, you've reached our clinic. How may I assist you?";
-          } else if (companyLower.includes("bank")) {
-            greeting = "Hello! You've reached our banking services. What can I help you with?";
-          }
-          
-          addTranscriptionMessage("EFA", greeting);
-          
           // Start latency monitoring
           latencyCheckIntervalRef.current = setInterval(() => {
             setState(prev => ({ ...prev, latency: Math.floor(Math.random() * 50) + 20 }));
           }, 2000);
           
-          logActivity("Session started successfully");
+          logActivity("WebRTC connection established, waiting for AI welcome message...");
         } else if (pc.connectionState === "failed") {
           updateConnectionStatus("error");
           logActivity("WebRTC connection failed");
@@ -379,6 +372,9 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
 
     // ✅ Clear all timeout timers to prevent memory leaks
     clearAllTimeouts();
+
+    // Reset welcome message flag for next session
+    hasReceivedWelcomeRef.current = false;
 
     // Clear latency monitoring
     if (latencyCheckIntervalRef.current) {

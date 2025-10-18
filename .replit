@@ -37,6 +37,10 @@ externalPort = 80
 localPort = 40137
 externalPort = 3000
 
+[[ports]]
+localPort = 44601
+externalPort = 3001
+
 [deployment]
 deploymentTarget = "autoscale"
 run = ["sh", "-c", "cd BizTalkAI-1 && npm run start"]
