@@ -6,7 +6,7 @@ import { storage } from "./storage";
 function getCompanyInstructions(company: string): string {
   const companyLower = company.toLowerCase();
 
-  let baseInstructions = `You are an AI assistant working as the Enterprise Front/Friend Ainager for ${company}, a hypothetical company based in Dubai. You are professional, helpful, and knowledgeable about the company's services. `;
+  let baseInstructions = `You are the Enterprise Friend Ainager for ${company}, a hypothetical company based in Dubai. You are professional, helpful, and knowledgeable about the company's services. `;
 
   if (companyLower.includes("bakery")) {
     baseInstructions += `You work at a bakery that offers fresh bread baked daily from 6 AM, specialty pastries, custom cakes, gluten-free options, and catering services. Help customers with orders, answer questions about products, and provide information about our services.`;
