@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import type { Multer } from "multer";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 
@@ -37,7 +38,7 @@ IMPORTANT: When the call starts, immediately greet the caller and briefly introd
   return baseInstructions;
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express, upload: Multer): Promise<Server> {
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -83,6 +84,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching ainager:", error);
       res.status(500).json({ 
         error: "Failed to fetch ainager from database" 
+      });
+    }
+  });
+
+  // Whisper transcription endpoint
+  app.post("/api/whisper/transcribe", upload.single('audio'), async (req, res) => {
+    try {
+      console.log("[Whisper] Transcription request received");
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      
+      if (!OPENAI_API_KEY) {
+        console.error("[Whisper] OpenAI API key not configured");
+        return res.status(500).json({ 
+          error: "OpenAI API key not configured" 
+        });
+      }
+
+      if (!req.file) {
+        console.error("[Whisper] No audio file provided");
+        return res.status(400).json({ 
+          error: "No audio file provided" 
+        });
+      }
+
+      console.log(`[Whisper] Processing audio file: ${req.file.originalname}, size: ${req.file.size} bytes, type: ${req.file.mimetype}`);
+
+      // Create FormData for OpenAI Whisper API
+      const formData = new FormData();
+      formData.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), req.file.originalname);
+      formData.append('model', 'whisper-1');
+      formData.append('response_format', 'verbose_json');
+      formData.append('language', 'en');
+
+      console.log("[Whisper] Sending request to OpenAI Whisper API...");
+
+      const whisperResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: formData,
+      });
+
+      console.log(`[Whisper] OpenAI response: ${whisperResponse.status} ${whisperResponse.statusText}`);
+
+      if (!whisperResponse.ok) {
+        const errorText = await whisperResponse.text();
+        console.error("Whisper API Error:", whisperResponse.status, errorText);
+        return res.status(whisperResponse.status).json({ 
+          error: `Whisper API error: ${errorText}` 
+        });
+      }
+
+      const result = await whisperResponse.json();
+      console.log("[Whisper] Transcription result:", result);
+      res.json(result);
+      
+    } catch (error) {
+      console.error("Whisper transcription error:", error);
+      res.status(500).json({ 
+        error: "Failed to transcribe audio" 
       });
     }
   });

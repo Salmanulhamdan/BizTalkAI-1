@@ -1,17 +1,17 @@
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { type Ainager } from "@shared/schema";
 import DirectoryHeader from "@/components/DirectoryHeader";
 import SearchBar from "@/components/SearchBar";
 import CompanyList from "@/components/CompanyList";
-import VoiceModal from "@/components/VoiceModal";
 import { useAinagers } from "@/hooks/useAinagers";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedAinager, setSelectedAinager] = useState<Ainager | null>(null);
   const [page, setPage] = useState(1);
   const [allAinagers, setAllAinagers] = useState<Ainager[]>([]);
   
@@ -49,11 +49,7 @@ export default function Home() {
   }, [data, page]);
 
   const handleCompanyClick = (ainager: Ainager) => {
-    setSelectedAinager(ainager);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedAinager(null);
+    setLocation("/chat", { state: { ainager } });
   };
 
   const handleShowMore = () => {
@@ -243,14 +239,6 @@ export default function Home() {
           )}
         </div>
       </main>
-
-      {selectedAinager && (
-        <VoiceModal
-          ainager={selectedAinager}
-          isOpen={!!selectedAinager}
-          onClose={handleCloseModal}
-        />
-      )}
     </div>
   );
 }

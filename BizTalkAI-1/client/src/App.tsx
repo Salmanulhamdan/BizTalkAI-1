@@ -5,12 +5,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/Home";
 import DirectCall from "@/pages/DirectCall";
+import ChatPage from "@/pages/ChatPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/chat" component={ChatPage} />
       <Route path="/p/:ainagerName" component={DirectCall} />
       <Route component={NotFound} />
     </Switch>
