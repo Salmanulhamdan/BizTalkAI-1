@@ -39,14 +39,21 @@ export function setupRealtimeWebSocket(
   company: string,
   req: IncomingMessage
 ) {
+  console.log(`[RealtimeWS] Setting up WebSocket connection for company: "${company}"`);
+  
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.error("OPENAI_API_KEY not found");
+    console.error("[RealtimeWS] ❌ OPENAI_API_KEY not found");
     clientWs.close(1008, "Server configuration error");
     return;
   }
 
   const url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
+  console.log(`[RealtimeWS] 📡 Connecting to OpenAI Realtime API`, { 
+    url: url.substring(0, 50) + '...',
+    company,
+    hasApiKey: !!apiKey
+  });
   
   const openaiWs = new WebSocket(url, {
     headers: {
@@ -56,7 +63,10 @@ export function setupRealtimeWebSocket(
   });
 
   openaiWs.on("open", () => {
-    console.log(`Connected to OpenAI Realtime API for ${company}`);
+    console.log(`[RealtimeWS] ✅ Connected to OpenAI Realtime API`, { 
+      company,
+      timestamp: new Date().toISOString()
+    });
 
     // Configure session with company-specific instructions
     const sessionConfig = {
@@ -79,52 +89,107 @@ export function setupRealtimeWebSocket(
       },
     };
 
+    console.log(`[RealtimeWS] 📤 Sending session configuration`, { 
+      company,
+      instructionsLength: sessionConfig.session.instructions.length,
+      voice: sessionConfig.session.voice,
+      modalities: sessionConfig.session.modalities
+    });
+
     openaiWs.send(JSON.stringify(sessionConfig));
+    console.log(`[RealtimeWS] ✅ Session configuration sent for ${company}`);
   });
 
   openaiWs.on("message", (data: Buffer) => {
     // Forward messages from OpenAI to client
+    console.log(`[RealtimeWS] 📨 Message from OpenAI`, { 
+      dataSize: data.length,
+      timestamp: new Date().toISOString()
+    });
+    
     if (clientWs.readyState === WebSocket.OPEN) {
       clientWs.send(data.toString());
+      console.log(`[RealtimeWS] ✅ Forwarded message to client`, { 
+        clientReadyState: clientWs.readyState,
+        messageSize: data.length
+      });
+    } else {
+      console.log(`[RealtimeWS] ⚠️ Client WebSocket not open, cannot forward message`, { 
+        clientReadyState: clientWs.readyState
+      });
     }
   });
 
   openaiWs.on("error", (error) => {
-    console.error("OpenAI WebSocket error:", error);
+    console.error(`[RealtimeWS] ❌ OpenAI WebSocket error`, { 
+      error: error.message,
+      code: error.code,
+      timestamp: new Date().toISOString()
+    });
+    
     if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.send(
-        JSON.stringify({
-          type: "error",
-          error: { message: "OpenAI connection error" },
-        })
-      );
+      const errorMessage = JSON.stringify({
+        type: "error",
+        error: { message: "OpenAI connection error" },
+      });
+      clientWs.send(errorMessage);
+      console.log(`[RealtimeWS] 📤 Sent error message to client`, { 
+        messageSize: errorMessage.length
+      });
     }
   });
 
   openaiWs.on("close", () => {
-    console.log("OpenAI WebSocket closed");
+    console.log(`[RealtimeWS] 🔌 OpenAI WebSocket closed`, { 
+      timestamp: new Date().toISOString()
+    });
+    
     if (clientWs.readyState === WebSocket.OPEN) {
+      console.log(`[RealtimeWS] 🔌 Closing client WebSocket due to OpenAI closure`);
       clientWs.close();
     }
   });
 
   // Forward messages from client to OpenAI
   clientWs.on("message", (data: Buffer) => {
+    console.log(`[RealtimeWS] 📨 Message from client`, { 
+      dataSize: data.length,
+      timestamp: new Date().toISOString()
+    });
+    
     if (openaiWs.readyState === WebSocket.OPEN) {
       openaiWs.send(data.toString());
+      console.log(`[RealtimeWS] ✅ Forwarded message to OpenAI`, { 
+        openaiReadyState: openaiWs.readyState,
+        messageSize: data.length
+      });
+    } else {
+      console.log(`[RealtimeWS] ⚠️ OpenAI WebSocket not open, cannot forward message`, { 
+        openaiReadyState: openaiWs.readyState
+      });
     }
   });
 
   clientWs.on("close", () => {
-    console.log("Client WebSocket closed");
+    console.log(`[RealtimeWS] 🔌 Client WebSocket closed`, { 
+      timestamp: new Date().toISOString()
+    });
+    
     if (openaiWs.readyState === WebSocket.OPEN) {
+      console.log(`[RealtimeWS] 🔌 Closing OpenAI WebSocket due to client closure`);
       openaiWs.close();
     }
   });
 
   clientWs.on("error", (error) => {
-    console.error("Client WebSocket error:", error);
+    console.error(`[RealtimeWS] ❌ Client WebSocket error`, { 
+      error: error.message,
+      code: error.code,
+      timestamp: new Date().toISOString()
+    });
+    
     if (openaiWs.readyState === WebSocket.OPEN) {
+      console.log(`[RealtimeWS] 🔌 Closing OpenAI WebSocket due to client error`);
       openaiWs.close();
     }
   });

@@ -136,13 +136,15 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
     enabled: isOpen,
   });
 
-  // Simple log function for debugging
-  const logActivity = (message: string) => {
-    console.log(`[VoiceModal] ${message}`);
+  // Enhanced log function for debugging voice flow
+  const logActivity = (message: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[VoiceModal] ${timestamp} - ${message}`, data || '');
   };
 
   // Set up audio element for playback
   useEffect(() => {
+    logActivity("Setting up audio element for playback");
     const audioElement = document.createElement('audio');
     audioElement.autoplay = true;
     audioElement.preload = 'auto';
@@ -152,8 +154,10 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
     // Add to DOM so it can play audio
     document.body.appendChild(audioElement);
     setAudioElement(audioElement);
+    logActivity("Audio element created and added to DOM", { autoplay: true, preload: 'auto' });
     
     return () => {
+      logActivity("Cleaning up audio element");
       audioElement.pause();
       audioElement.srcObject = null;
       document.body.removeChild(audioElement);
@@ -166,7 +170,10 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
   useEffect(() => {
     if (state.connectionStatus === "connected" && state.transcription.length === 0) {
       // Don't add automatic greeting - let the real transcription handle it
-      logActivity("Session connected - ready for real-time transcription");
+      logActivity("Session connected - ready for real-time transcription", { 
+        connectionStatus: state.connectionStatus,
+        transcriptionCount: state.transcription.length 
+      });
     }
   }, [state.connectionStatus, state.transcription.length, addTranscriptionMessage]);
 
@@ -248,11 +255,16 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
     : "idle";
 
   const handleHangup = () => {
+    logActivity("User clicked hangup button", { action: 'hangup' });
     stopSession();
     onClose();
   };
 
   const handleCallButton = () => {
+    logActivity("User clicked call button", { 
+      currentStatus: state.connectionStatus,
+      action: 'start_call' 
+    });
     if (state.connectionStatus === "idle" || state.connectionStatus === "error" || state.connectionStatus === "disconnected") {
       startSession();
     }
@@ -447,7 +459,13 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
                   ? "bg-red-500/20 hover:bg-red-500/30" 
                   : "bg-muted hover:bg-muted/80"
               }`}
-              onClick={() => setIsMuted(!isMuted)}
+              onClick={() => {
+                logActivity("User clicked mute button", { 
+                  currentMuteState: isMuted, 
+                  newMuteState: !isMuted 
+                });
+                setIsMuted(!isMuted);
+              }}
               data-testid="button-mute"
             >
               {isMuted ? <MicOff className="w-5 h-5 text-red-500" /> : <Mic className="w-5 h-5" />}
@@ -462,7 +480,13 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
                   ? "bg-red-500/20 hover:bg-red-500/30" 
                   : "bg-muted hover:bg-muted/80"
               }`}
-              onClick={() => setSpeakerOn(!speakerOn)}
+              onClick={() => {
+                logActivity("User clicked speaker button", { 
+                  currentSpeakerState: speakerOn, 
+                  newSpeakerState: !speakerOn 
+                });
+                setSpeakerOn(!speakerOn);
+              }}
               data-testid="button-speaker"
             >
               {speakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-red-500" />}

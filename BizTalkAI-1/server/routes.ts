@@ -90,20 +90,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { voice = "marin", model = "gpt-realtime", company = "", ainagerId = "" } = req.body;
 
-      console.log(`[Session] Creating session for company: "${company}", ainagerId: "${ainagerId}"`);
+      console.log(`[Session] 🚀 Creating session`, { 
+        company: `"${company}"`, 
+        ainagerId: `"${ainagerId}"`,
+        voice,
+        model,
+        timestamp: new Date().toISOString()
+      });
 
       const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
       
       if (!OPENAI_API_KEY) {
-        console.error("OpenAI API key missing. Environment:", {
+        console.error(`[Session] ❌ OpenAI API key missing`, {
           isDevelopment: process.env.NODE_ENV === 'development',
           isDeployment: process.env.REPLIT_DEPLOYMENT === '1',
-          availableKeys: Object.keys(process.env).filter(key => key.includes('OPENAI'))
+          availableKeys: Object.keys(process.env).filter(key => key.includes('OPENAI')),
+          timestamp: new Date().toISOString()
         });
         return res.status(500).json({ 
           error: "OpenAI API key not configured. Please ensure OPENAI_API_KEY is set in your Replit Secrets." 
         });
       }
+
+      console.log(`[Session] ✅ OpenAI API key found`, { 
+        keyLength: OPENAI_API_KEY.length,
+        keyPrefix: OPENAI_API_KEY.substring(0, 10) + '...'
+      });
 
       // Call OpenAI's client secrets endpoint to mint ephemeral token
       const sessionBody: any = {
@@ -115,24 +127,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let instructions = "";
       
       if (ainagerId) {
+        console.log(`[Session] 🔍 Looking up ainager instructions`, { ainagerId });
         const ainager = await storage.getAinagerById(ainagerId);
         if (ainager) {
           instructions = ainager.ainagerInstruction || "";
-          console.log(`[Session] Using ainager instructions for ID "${ainagerId}": ${instructions.substring(0, 100)}...`);
+          console.log(`[Session] ✅ Found ainager instructions`, { 
+            ainagerId,
+            instructionsLength: instructions.length,
+            instructionsPreview: instructions.substring(0, 100) + '...'
+          });
+        } else {
+          console.log(`[Session] ⚠️ Ainager not found`, { ainagerId });
         }
       }
       
       // Fallback to company-specific instructions if no ainager found
       if (!instructions && company) {
+        console.log(`[Session] 🔄 Using fallback company instructions`, { company });
         instructions = getCompanyInstructions(company);
-        console.log(`[Session] Using fallback instructions for "${company}": ${instructions.substring(0, 100)}...`);
+        console.log(`[Session] ✅ Generated company instructions`, { 
+          company,
+          instructionsLength: instructions.length,
+          instructionsPreview: instructions.substring(0, 100) + '...'
+        });
       }
       
       if (instructions) {
         sessionBody.instructions = instructions;
+        console.log(`[Session] 📝 Instructions added to session body`, { 
+          instructionsLength: instructions.length
+        });
       } else {
-        console.log('[Session] No instructions found, using default behavior');
+        console.log(`[Session] ⚠️ No instructions found, using default behavior`);
       }
+
+      console.log(`[Session] 📤 Sending request to OpenAI`, { 
+        endpoint: "https://api.openai.com/v1/realtime/sessions",
+        method: "POST",
+        sessionBodyKeys: Object.keys(sessionBody),
+        hasInstructions: !!sessionBody.instructions
+      });
 
       const sessionResponse = await fetch("https://api.openai.com/v1/realtime/sessions", {
         method: "POST",
@@ -145,24 +179,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!sessionResponse.ok) {
         const errorText = await sessionResponse.text();
-        console.error("=== FULL OPENAI API ERROR ===");
-        console.error("Status:", sessionResponse.status);
-        console.error("Status Text:", sessionResponse.statusText);
-        console.error("Full Error Response:", errorText);
-        console.error("=============================");
+        console.error(`[Session] ❌ OpenAI API Error`, {
+          status: sessionResponse.status,
+          statusText: sessionResponse.statusText,
+          errorText: errorText.substring(0, 500) + '...',
+          timestamp: new Date().toISOString()
+        });
         return res.status(sessionResponse.status).json({ 
           error: `OpenAI API error: ${errorText}` 
         });
       }
 
       const sessionData = await sessionResponse.json();
+      console.log(`[Session] ✅ Session created successfully`, { 
+        sessionId: sessionData.id,
+        hasClientSecret: !!sessionData.client_secret,
+        clientSecretLength: sessionData.client_secret?.length || 0,
+        timestamp: new Date().toISOString()
+      });
 
       res.json({
         client_secret: sessionData.client_secret,
         session: sessionData,
       });
     } catch (error) {
-      console.error("Session creation error:", error);
+      console.error(`[Session] ❌ Session creation error`, { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack?.substring(0, 300) + '...' : undefined,
+        timestamp: new Date().toISOString()
+      });
       res.status(500).json({ 
         error: "Failed to create session. Please check your OpenAI API key and try again." 
       });
