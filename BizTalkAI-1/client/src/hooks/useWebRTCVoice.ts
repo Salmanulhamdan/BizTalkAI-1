@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useLocalWhisper, type LocalTranscription } from "./useLocalWhisper";
 
 export type ConnectionStatus = "idle" | "connecting" | "connected" | "error" | "disconnected";
 
@@ -7,6 +8,8 @@ export interface TranscriptionMessage {
   speaker: "Efa" | "You";
   text: string;
   timestamp: string;
+  isLocal?: boolean;
+  confidence?: number;
 }
 
 export interface VoiceChatState {
@@ -17,6 +20,7 @@ export interface VoiceChatState {
   latency: number | null;
   activityLogs: Array<{ timestamp: string; message: string }>;
   transcription: TranscriptionMessage[];
+  localTranscription: LocalTranscription[];
 }
 
 export interface UseWebRTCVoiceProps {
@@ -34,6 +38,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
     latency: null,
     activityLogs: [],
     transcription: [],
+    localTranscription: [],
   });
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -41,6 +46,39 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const latencyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopSessionRef = useRef<(() => void) | null>(null);
+  const hasReceivedWelcomeRef = useRef<boolean>(false);
+  
+  // Local Whisper transcription hook
+  const { 
+    isRecording: isLocalRecording, 
+    isProcessing: isLocalProcessing,
+    startRecording: startLocalRecording,
+    stopRecording: stopLocalRecording,
+    cleanup: cleanupLocalWhisper
+  } = useLocalWhisper({
+    enabled: enabled && state.connectionStatus === "connected",
+    onTranscriptionUpdate: (localTranscription: LocalTranscription) => {
+      logActivity(`🎤 Local transcription: "${localTranscription.text}"`);
+      
+      // Add to local transcription state
+      setState(prev => ({
+        ...prev,
+        localTranscription: [...prev.localTranscription, localTranscription]
+      }));
+      
+      // Also add as a regular transcription message with local flag
+      const transcriptionMessage: TranscriptionMessage = {
+        id: localTranscription.id,
+        speaker: "You",
+        text: localTranscription.text,
+        timestamp: localTranscription.timestamp,
+        isLocal: true,
+        confidence: localTranscription.confidence
+      };
+      
+      addTranscriptionMessage("You", localTranscription.text, true, localTranscription.confidence);
+    }
+  });
   
   // ✅ SESSION TIMEOUT SAFEGUARDS - Prevents runaway costs
   // Track last activity time to detect idle sessions
@@ -59,10 +97,19 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
     }));
   }, []);
 
-  const addTranscriptionMessage = useCallback((speaker: "Efa" | "You", text: string) => {
+  const addTranscriptionMessage = useCallback((speaker: "Efa" | "You", text: string, isLocal?: boolean, confidence?: number) => {
     const timestamp = new Date().toLocaleTimeString();
     const id = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const message: TranscriptionMessage = { id, speaker, text, timestamp };
+    const message: TranscriptionMessage = { 
+      id, 
+      speaker, 
+      text, 
+      timestamp, 
+      isLocal: isLocal || false,
+      confidence 
+    };
+    
+    logActivity(`📝 Adding ${speaker} message: "${text}"${isLocal ? ' (local)' : ''}`);
     
     logActivity(`Adding transcription message`, { speaker, text: text.substring(0, 50) + '...', id });
     
@@ -205,6 +252,12 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
       localStreamRef.current.getTracks().forEach(track => {
         pc.addTrack(track, localStreamRef.current!);
       });
+      
+      // Start local Whisper recording in parallel
+      logActivity("Starting local Whisper recording...");
+      logActivity(`Local stream available: ${!!localStreamRef.current}`);
+      logActivity(`Local stream tracks: ${localStreamRef.current?.getTracks().length || 0}`);
+      startLocalRecording(localStreamRef.current);
 
       // Step 5: Create data channel for events (optional but recommended)
       logActivity("📡 Creating data channel for OpenAI events");
@@ -256,9 +309,12 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
             modalities: ["text", "audio"],
             instructions: instructions,
             voice: state.selectedVoice,
-            input_audio_transcription: {
-              model: "whisper-1"
-            },
+            input_audio_format: "pcm16",
+            output_audio_format: "pcm16",
+            // DISABLED: input_audio_transcription (we use local Whisper instead)
+            // input_audio_transcription: {
+            //   model: "whisper-1"
+            // },
             output_audio_transcription: {
               model: "whisper-1"
             },
@@ -287,30 +343,54 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
         
         try {
           const data = JSON.parse(event.data);
-          logActivity(`📨 Data channel message received`, { 
-            type: data.type,
-            hasTranscript: !!data.transcript,
-            hasDelta: !!data.delta,
-            messageSize: event.data.length
-          });
+          
+          // Only log important events to avoid spam
+          if (data.type && (data.type.includes('input_audio') || data.type.includes('transcription'))) {
+            logActivity(`🎤 Voice event: ${data.type}`);
+          }
           
           // Handle different message types
+          // DISABLED: OpenAI Realtime user transcription (we use local Whisper instead)
           if (data.type === "conversation.item.input_audio_transcription.completed") {
-            // User speech transcribed
+            // User speech transcribed - DISABLED to avoid duplicates with local Whisper
             const transcript = data.transcript;
             if (transcript) {
-              logActivity(`👤 User transcript completed`, { 
-                transcript: transcript.substring(0, 100) + '...',
-                fullLength: transcript.length
-              });
-              addTranscriptionMessage("You", transcript);
+              logActivity(`🎤 OpenAI user transcription (DISABLED): "${transcript}"`);
+              // addTranscriptionMessage("You", transcript); // DISABLED
             }
           } else if (data.type === "conversation.item.input_audio_transcription.failed") {
-            logActivity("❌ User transcription failed", { error: data.error });
+            logActivity("❌ ❌ User transcription failed", { error: data.error });
           } else if (data.type === "input_audio_buffer.speech_started") {
-            logActivity("🎤 User started speaking");
+            logActivity("🎙️ 🎤 User started speaking - listening for voice input");
           } else if (data.type === "input_audio_buffer.speech_stopped") {
-            logActivity("🔇 User stopped speaking");
+            logActivity("🎙️ 🔇 User stopped speaking - processing voice input");
+          } else if (data.type === "conversation.item.input_audio_transcription.delta") {
+            // User transcription in progress - DISABLED
+            if (data.delta) {
+              logActivity(`🎤 User transcript delta (DISABLED): ${data.delta}`);
+            }
+          } else if (data.type === "input_audio_buffer.committed") {
+            // User audio buffer committed - this might be the correct event
+            logActivity("🎙️ User audio buffer committed - processing transcription");
+          } else if (data.type === "conversation.item.input_audio_transcription.started") {
+            logActivity("🎤 User transcription started");
+          } else if (data.type === "conversation.item.input_audio_transcription.done") {
+            // Alternative completion event - DISABLED
+            const transcript = data.transcript;
+            if (transcript) {
+              logActivity(`🎤 OpenAI user transcription done (DISABLED): "${transcript}"`);
+              // addTranscriptionMessage("You", transcript); // DISABLED
+            }
+          } else if (data.type === "conversation.item.input_audio_transcription.created") {
+            // Transcription created event
+            logActivity(`🎤 User transcription created`);
+          } else if (data.type === "conversation.item.input_audio_transcription.updated") {
+            // Transcription updated event - DISABLED
+            const transcript = data.transcript;
+            if (transcript) {
+              logActivity(`🎤 OpenAI user transcription updated (DISABLED): "${transcript}"`);
+              // addTranscriptionMessage("You", transcript); // DISABLED
+            }
           } else if (data.type === "response.audio_transcript.delta") {
             // AI response transcription in progress
             if (data.delta) {
@@ -328,6 +408,25 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
                 fullLength: transcript.length
               });
               addTranscriptionMessage("Efa", transcript);
+              
+              // First AI message received - update status to "connected"
+              if (!hasReceivedWelcomeRef.current) {
+                hasReceivedWelcomeRef.current = true;
+                updateConnectionStatus("connected");
+                logActivity("Welcome message received - connection ready");
+              }
+            }
+          } else if (data.type === "input_audio_buffer.committed") {
+            // User audio buffer committed - this triggers transcription
+            logActivity("🎙️ User audio committed - requesting transcription");
+          } else if (data.type === "conversation.item.input_audio_transcription.created") {
+            // Transcription object created
+            logActivity("🎤 User transcription object created");
+          } else if (data.type === "conversation.item.input_audio_transcription.updated") {
+            // Transcription updated with results
+            if (data.transcript) {
+              logActivity(`🎤 User transcription updated: "${data.transcript}"`);
+              addTranscriptionMessage("You", data.transcript);
             }
           } else if (data.type === "response.done") {
             // AI response completed - check if we have a transcript
@@ -351,15 +450,13 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
               }
             }
           } else if (data.type === "error") {
-            logActivity(`❌ Error received`, { 
-              error: data.error?.message || 'Unknown error',
-              fullError: data.error
-            });
-          } else {
-            logActivity(`📋 Other message type`, { 
-              type: data.type,
-              hasData: Object.keys(data).length > 0
-            });
+            logActivity(`Error: ${data.error?.message || 'Unknown error'}`);
+          }
+          
+          // Simple fallback: Check for direct transcript property - DISABLED
+          if (data.transcript && typeof data.transcript === 'string' && data.transcript.trim()) {
+            logActivity(`🎤 Direct transcript found (DISABLED): "${data.transcript}"`);
+            // addTranscriptionMessage("You", data.transcript); // DISABLED
           }
         } catch (error) {
           logActivity(`❌ Failed to parse data channel message`, { 
@@ -393,7 +490,8 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
         });
         
         if (pc.connectionState === "connected") {
-          updateConnectionStatus("connected");
+          // Keep status as "connecting" until AI's welcome message arrives
+          // updateConnectionStatus will be called when first AI message is received
           setState(prev => ({ 
             ...prev, 
             isSessionActive: true, 
@@ -430,7 +528,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
             setState(prev => ({ ...prev, latency: Math.floor(Math.random() * 50) + 20 }));
           }, 2000);
           
-          logActivity("✅ Session started successfully with latency monitoring");
+          logActivity("✅ WebRTC connection established, waiting for AI welcome message... with latency monitoring");
         } else if (pc.connectionState === "failed") {
           updateConnectionStatus("error");
           logActivity("❌ WebRTC connection failed", { 
@@ -513,6 +611,12 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
 
     // ✅ Clear all timeout timers to prevent memory leaks
     clearAllTimeouts();
+    
+    // Stop local Whisper recording
+    cleanupLocalWhisper();
+
+    // Reset welcome message flag for next session
+    hasReceivedWelcomeRef.current = false;
 
     // Clear latency monitoring
     if (latencyCheckIntervalRef.current) {
@@ -552,6 +656,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
       sessionId: null,
       latency: null,
       transcription: [],
+      localTranscription: [],
     }));
 
     logActivity("✅ Session ended and cleaned up");
@@ -598,5 +703,8 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
     stopSession,
     setAudioElement,
     addTranscriptionMessage,
+    // Local Whisper state
+    isLocalRecording,
+    isLocalProcessing,
   };
 }

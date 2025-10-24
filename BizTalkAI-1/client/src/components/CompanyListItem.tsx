@@ -1,5 +1,6 @@
 import { type Ainager } from "@shared/schema";
 import { Phone } from "lucide-react";
+import { formatAinagerName } from "@/lib/utils";
 
 interface CompanyListItemProps {
   ainager: Ainager;
@@ -7,7 +8,8 @@ interface CompanyListItemProps {
 }
 
 export default function CompanyListItem({ ainager, onClick }: CompanyListItemProps) {
-  const initial = ainager.ainagerName.charAt(0).toUpperCase();
+  const displayName = formatAinagerName(ainager.ainagerName);
+  const initial = displayName.charAt(0).toUpperCase();
   
   return (
     <button
@@ -26,7 +28,7 @@ export default function CompanyListItem({ ainager, onClick }: CompanyListItemPro
       {/* Content */}
       <div className="flex-1 min-w-0 text-left">
         <h3 className="font-semibold text-foreground truncate text-[15px] leading-tight">
-          {ainager.ainagerName}
+          {displayName}
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           Business Assistant

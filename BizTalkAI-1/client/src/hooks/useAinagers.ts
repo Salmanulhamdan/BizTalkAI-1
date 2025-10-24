@@ -39,7 +39,6 @@ export function useAinagers(page: number = 1, limit: number = 10, search: string
     queryFn: () => fetchAinagers(page, limit, search),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
-    keepPreviousData: true, // Keep showing old data while fetching new
   });
 }
 

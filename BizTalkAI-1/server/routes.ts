@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import type { Multer } from "multer";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 
@@ -6,7 +7,7 @@ import { storage } from "./storage";
 function getCompanyInstructions(company: string): string {
   const companyLower = company.toLowerCase();
 
-  let baseInstructions = `You are an AI assistant working as the Enterprise Front/Friend Ainager for ${company}, a hypothetical company based in Dubai. You are professional, helpful, and knowledgeable about the company's services. `;
+  let baseInstructions = `You are the Enterprise Friend Ainager for ${company}, a hypothetical company based in Dubai. You are professional, helpful, and knowledgeable about the company's services. `;
 
   if (companyLower.includes("bakery")) {
     baseInstructions += `You work at a bakery that offers fresh bread baked daily from 6 AM, specialty pastries, custom cakes, gluten-free options, and catering services. Help customers with orders, answer questions about products, and provide information about our services.`;
@@ -30,12 +31,14 @@ function getCompanyInstructions(company: string): string {
     baseInstructions += `You provide professional business services with a customer-focused approach. Help callers with their inquiries and provide information about your services.`;
   }
 
-  baseInstructions += ` Be conversational, warm, and helpful. Answer questions clearly and concisely. Since this is a demo, you can provide reasonable and professional responses based on the company name and type. Always mention that we are located in Dubai when relevant.`;
+  baseInstructions += ` Be conversational, warm, and helpful. Answer questions clearly and concisely. Since this is a demo, you can provide reasonable and professional responses based on the company name and type. Always mention that we are located in Dubai when relevant.
+
+IMPORTANT: When the call starts, immediately greet the caller and briefly introduce yourself and what you can help with. Start the conversation proactively with a warm welcome.`;
 
   return baseInstructions;
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express, upload: Multer): Promise<Server> {
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -81,6 +84,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching ainager:", error);
       res.status(500).json({ 
         error: "Failed to fetch ainager from database" 
+      });
+    }
+  });
+
+  // Whisper transcription endpoint
+  app.post("/api/whisper/transcribe", upload.single('audio'), async (req, res) => {
+    try {
+      console.log("[Whisper] Transcription request received");
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      
+      if (!OPENAI_API_KEY) {
+        console.error("[Whisper] OpenAI API key not configured");
+        return res.status(500).json({ 
+          error: "OpenAI API key not configured" 
+        });
+      }
+
+      if (!req.file) {
+        console.error("[Whisper] No audio file provided");
+        return res.status(400).json({ 
+          error: "No audio file provided" 
+        });
+      }
+
+      console.log(`[Whisper] Processing audio file: ${req.file.originalname}, size: ${req.file.size} bytes, type: ${req.file.mimetype}`);
+
+      // Create FormData for OpenAI Whisper API
+      const formData = new FormData();
+      formData.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), req.file.originalname);
+      formData.append('model', 'whisper-1');
+      formData.append('response_format', 'verbose_json');
+      formData.append('language', 'en');
+
+      console.log("[Whisper] Sending request to OpenAI Whisper API...");
+
+      const whisperResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: formData,
+      });
+
+      console.log(`[Whisper] OpenAI response: ${whisperResponse.status} ${whisperResponse.statusText}`);
+
+      if (!whisperResponse.ok) {
+        const errorText = await whisperResponse.text();
+        console.error("Whisper API Error:", whisperResponse.status, errorText);
+        return res.status(whisperResponse.status).json({ 
+          error: `Whisper API error: ${errorText}` 
+        });
+      }
+
+      const result = await whisperResponse.json();
+      console.log("[Whisper] Transcription result:", result);
+      res.json(result);
+      
+    } catch (error) {
+      console.error("Whisper transcription error:", error);
+      res.status(500).json({ 
+        error: "Failed to transcribe audio" 
       });
     }
   });
@@ -152,7 +216,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Add welcome message directive based on the ainager instruction
       if (instructions) {
+        // Only add if not already present
+        if (!instructions.includes("When the call starts")) {
+          instructions += `\n\nIMPORTANT: When the call starts, immediately greet the caller with a warm welcome and briefly introduce yourself based on your role and capabilities described above. Use the information from your instructions to explain what you can help with.`;
+        }
         sessionBody.instructions = instructions;
         console.log(`[Session] 📝 Instructions added to session body`, { 
           instructionsLength: instructions.length
