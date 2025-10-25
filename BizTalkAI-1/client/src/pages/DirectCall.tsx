@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
-import VoiceModal from "@/components/VoiceModal";
+import ChatPage from "@/pages/ChatPage";
 import { Loader2, AlertCircle } from "lucide-react";
 import { type Ainager } from "@shared/schema";
 
@@ -129,15 +129,11 @@ export default function DirectCall() {
     );
   }
 
-  // Success - show voice modal
+  // Success - show chat page
   if (ainager) {
-    return (
-      <VoiceModal
-        ainager={ainager}
-        isOpen={true}
-        onClose={handleClose}
-      />
-    );
+    // Set the ainager in history state for ChatPage to access
+    history.replaceState({ ainager }, '', window.location.href);
+    return <ChatPage />;
   }
 
   return null;

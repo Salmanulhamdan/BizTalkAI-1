@@ -90,9 +90,9 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
-        <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
-          <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg">
+      <div className="h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
+        <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-0 sm:mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
+          <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg flex-shrink-0">
             <DirectoryHeader />
             <SearchBar
               value={searchValue}
@@ -121,9 +121,9 @@ export default function Home() {
                            errorMessage.toLowerCase().includes("fetch");
     
     return (
-      <div className="min-h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
-        <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
-          <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg">
+      <div className="h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
+        <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-0 sm:mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
+          <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg flex-shrink-0">
             <DirectoryHeader />
             <SearchBar
               value={searchValue}
@@ -172,9 +172,10 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
-      <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
-        <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg">
+    <div className="h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
+      <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-0 sm:mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
+        {/* Fixed Header */}
+        <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg flex-shrink-0">
           <DirectoryHeader />
           <SearchBar
             value={searchValue}
@@ -183,19 +184,20 @@ export default function Home() {
           />
         </div>
 
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto mobile-scroll smooth-scroll">
+        {/* Scrollable Content */}
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto mobile-scroll smooth-scroll scrollbar-hide">
           {/* Inline Error Banner (shown when there's data but pagination/refresh fails) */}
           {error && allAinagers.length > 0 && (
-            <div className="mx-4 mt-4 mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center mt-0.5">
-                  <svg className="w-3 h-3 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="mx-3 sm:mx-4 mt-3 sm:mt-4 mb-2 p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-destructive/20 flex items-center justify-center mt-0.5">
+                  <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" />
                   </svg>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-destructive">Connection Error</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm font-semibold text-destructive">Connection Error</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                     {(error as Error)?.message?.toLowerCase().includes("database")
                       ? "Database connection lost. Showing cached results."
                       : "Unable to fetch new data. Showing cached results."
@@ -206,7 +208,7 @@ export default function Home() {
                   onClick={() => window.location.reload()}
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs"
+                  className="h-6 sm:h-7 text-[10px] sm:text-xs flex-shrink-0"
                 >
                   Retry
                 </Button>
@@ -215,14 +217,14 @@ export default function Home() {
           )}
           
           {allAinagers.length === 0 && !isLoading && debouncedSearch ? (
-            <div className="flex flex-col items-center justify-center py-20 px-6">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-4 sm:px-6">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-muted flex items-center justify-center mb-3 sm:mb-4">
+                <svg className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <p className="text-muted-foreground font-medium text-center">No assistants found</p>
-              <p className="text-sm text-muted-foreground/60 mt-2 text-center">Try searching with different keywords</p>
+              <p className="text-muted-foreground font-medium text-center text-sm sm:text-base">No assistants found</p>
+              <p className="text-xs sm:text-sm text-muted-foreground/60 mt-2 text-center">Try searching with different keywords</p>
             </div>
           ) : (
             <>
@@ -233,20 +235,24 @@ export default function Home() {
               
               {/* Show More Button */}
               {data?.hasMore && (
-                <div className="px-6 py-4 flex justify-center">
+                <div className="px-4 sm:px-6 py-4 flex justify-center">
                   <Button
                     onClick={handleShowMore}
                     disabled={isFetching}
                     variant="outline"
-                    className="w-full max-w-sm rounded-xl font-semibold"
+                    className="w-full max-w-sm rounded-xl font-semibold text-sm sm:text-base h-10 sm:h-12"
                   >
                     {isFetching ? (
                       <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Loading...
+                        <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 animate-spin" />
+                        <span className="hidden sm:inline">Loading...</span>
+                        <span className="sm:hidden">Loading</span>
                       </>
                     ) : (
-                      `Show More (${data.total - allAinagers.length} remaining)`
+                      <>
+                        <span className="hidden sm:inline">Show More ({data.total - allAinagers.length} remaining)</span>
+                        <span className="sm:hidden">Show More</span>
+                      </>
                     )}
                   </Button>
                 </div>
@@ -254,7 +260,7 @@ export default function Home() {
               
               {/* End of List Message */}
               {!data?.hasMore && allAinagers.length > 0 && (
-                <div className="px-6 py-6 text-center">
+                <div className="px-4 sm:px-6 py-6 text-center">
                   <p className="text-xs text-muted-foreground">
                     All {allAinagers.length} assistants shown
                   </p>

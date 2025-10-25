@@ -346,6 +346,15 @@
     scroll-behavior: smooth;
   }
 
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Safari and Chrome */
+  }
+
   /* Mobile-optimized scroll-to-top button */
   .scroll-to-top {
     position: fixed;
@@ -388,6 +397,27 @@
     /* Mobile-optimized shadows */
     .mobile-shadow {
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  /* Responsive chat optimizations */
+  @media (max-width: 640px) {
+    /* Ensure proper text rendering on mobile */
+    * {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Optimize touch scrolling */
+    * {
+      touch-action: pan-y;
+    }
+
+    /* Prevent text size adjustment on iOS */
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
     }
   }
 }

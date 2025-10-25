@@ -4,39 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 
 // Helper function to generate company-specific instructions
-function getCompanyInstructions(company: string): string {
-  const companyLower = company.toLowerCase();
 
-  let baseInstructions = `You are the Enterprise Friend Ainager for ${company}, a hypothetical company based in Dubai. You are professional, helpful, and knowledgeable about the company's services. `;
-
-  if (companyLower.includes("bakery")) {
-    baseInstructions += `You work at a bakery that offers fresh bread baked daily from 6 AM, specialty pastries, custom cakes, gluten-free options, and catering services. Help customers with orders, answer questions about products, and provide information about our services.`;
-  } else if (companyLower.includes("restaurant")) {
-    baseInstructions += `You work at a restaurant open 11 AM - 10 PM daily. Reservations are recommended for weekends. We serve traditional and contemporary cuisine with private dining rooms available. Help customers make reservations, answer menu questions, and provide dining information.`;
-  } else if (companyLower.includes("clinic") || companyLower.includes("health")) {
-    baseInstructions += `You work at a medical clinic offering walk-in appointments, specialist consultations, health check-up packages, and 24/7 emergency services. Help patients schedule appointments, answer questions about services, and provide general information.`;
-  } else if (companyLower.includes("hotel")) {
-    baseInstructions += `You work at a luxury hotel with modern amenities, conference facilities, fine dining, and a spa. Help guests with reservations, answer questions about facilities and services, and provide concierge assistance.`;
-  } else if (companyLower.includes("bank")) {
-    baseInstructions += `You work at a bank offering personal and business banking, investment and loan services, 24/7 online banking, and financial advisory. Help customers with account inquiries, service information, and general banking questions.`;
-  } else if (companyLower.includes("tech") || companyLower.includes("digital") || companyLower.includes("systems")) {
-    baseInstructions += `You work at a technology company providing custom software development, cloud infrastructure, IT consulting and support, and digital transformation services. Help clients understand our solutions and services.`;
-  } else if (companyLower.includes("industries") || companyLower.includes("solutions")) {
-    baseInstructions += `You work at an industrial company providing equipment, machinery, custom manufacturing, quality control, and worldwide shipping. Help clients with product inquiries and service information.`;
-  } else if (companyLower.includes("logistics") || companyLower.includes("travel")) {
-    baseInstructions += `You work at a logistics company offering domestic and international shipping, real-time tracking, express delivery, and warehouse services. Help customers with shipping inquiries and tracking information.`;
-  } else if (companyLower.includes("foods")) {
-    baseInstructions += `You work at a food distribution company offering premium quality products, wholesale and retail distribution, fresh produce, and bulk order discounts. Help customers with product information and orders.`;
-  } else {
-    baseInstructions += `You provide professional business services with a customer-focused approach. Help callers with their inquiries and provide information about your services.`;
-  }
-
-  baseInstructions += ` Be conversational, warm, and helpful. Answer questions clearly and concisely. Since this is a demo, you can provide reasonable and professional responses based on the company name and type. Always mention that we are located in Dubai when relevant.
-
-IMPORTANT: When the call starts, immediately greet the caller and briefly introduce yourself and what you can help with. Start the conversation proactively with a warm welcome.`;
-
-  return baseInstructions;
-}
 
 export async function registerRoutes(app: Express, upload: Multer): Promise<Server> {
   // Health check endpoint
@@ -112,7 +80,7 @@ export async function registerRoutes(app: Express, upload: Multer): Promise<Serv
 
       // Create FormData for OpenAI Whisper API
       const formData = new FormData();
-      formData.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), req.file.originalname);
+      formData.append('file', new Blob([new Uint8Array(req.file.buffer)], { type: req.file.mimetype }), req.file.originalname);
       formData.append('model', 'whisper-1');
       formData.append('response_format', 'verbose_json');
       formData.append('language', 'en');
@@ -145,6 +113,65 @@ export async function registerRoutes(app: Express, upload: Multer): Promise<Serv
       console.error("Whisper transcription error:", error);
       res.status(500).json({ 
         error: "Failed to transcribe audio" 
+      });
+    }
+  });
+
+  // Text-to-Speech endpoint
+  app.post("/api/tts", async (req, res) => {
+    try {
+      const { text, voice = "nova" } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      
+      if (!OPENAI_API_KEY) {
+        return res.status(500).json({ 
+          error: "OpenAI API key not configured" 
+        });
+      }
+
+      console.log(`[TTS] Converting text to speech`, { 
+        textLength: text.length,
+        voice,
+        textPreview: text.substring(0, 100) + '...'
+      });
+
+      const response = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "tts-1",
+          voice: voice,
+          input: text,
+          response_format: "mp3"
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("TTS API Error:", response.status, errorText);
+        return res.status(response.status).json({ 
+          error: `TTS API error: ${errorText}` 
+        });
+      }
+
+      const audioBuffer = await response.arrayBuffer();
+      
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Content-Length', audioBuffer.byteLength);
+      res.send(Buffer.from(audioBuffer));
+      
+    } catch (error) {
+      console.error("TTS error:", error);
+      res.status(500).json({ 
+        error: "Failed to convert text to speech" 
       });
     }
   });
@@ -203,17 +230,6 @@ export async function registerRoutes(app: Express, upload: Multer): Promise<Serv
         } else {
           console.log(`[Session] ⚠️ Ainager not found`, { ainagerId });
         }
-      }
-      
-      // Fallback to company-specific instructions if no ainager found
-      if (!instructions && company) {
-        console.log(`[Session] 🔄 Using fallback company instructions`, { company });
-        instructions = getCompanyInstructions(company);
-        console.log(`[Session] ✅ Generated company instructions`, { 
-          company,
-          instructionsLength: instructions.length,
-          instructionsPreview: instructions.substring(0, 100) + '...'
-        });
       }
       
       // Add welcome message directive based on the ainager instruction
