@@ -14,7 +14,7 @@ export default function CompanyListItem({ ainager, onClick }: CompanyListItemPro
   return (
     <button
       onClick={() => onClick(ainager)}
-      className="group w-full flex items-center gap-4 py-3.5 px-4 rounded-xl cursor-pointer transition-all duration-200 hover:bg-primary/5 active:scale-[0.99] border border-transparent hover:border-primary/20"
+      className="group w-full flex items-center gap-4 py-3.5 px-4 rounded-xl cursor-pointer transition-all duration-200 hover:bg-primary/5 active:scale-[0.99] border border-transparent hover:border-primary/20 touch-manipulation min-h-[60px]"
       data-testid={`item-company-${ainager.ainagerName.toLowerCase().replace(/\s+/g, "-")}`}
     >
       {/* Avatar */}

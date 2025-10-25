@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useLocalWhisper, type LocalTranscription } from "./useLocalWhisper";
 
 export type ConnectionStatus = "idle" | "connecting" | "connected" | "error" | "disconnected";
 
@@ -15,12 +14,8 @@ export interface TranscriptionMessage {
 export interface VoiceChatState {
   connectionStatus: ConnectionStatus;
   isSessionActive: boolean;
-  selectedVoice: string;
   sessionId: string | null;
-  latency: number | null;
-  activityLogs: Array<{ timestamp: string; message: string }>;
   transcription: TranscriptionMessage[];
-  localTranscription: LocalTranscription[];
 }
 
 export interface UseWebRTCVoiceProps {
@@ -33,55 +28,17 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
   const [state, setState] = useState<VoiceChatState>({
     connectionStatus: "idle",
     isSessionActive: false,
-    selectedVoice: "marin",
     sessionId: null,
-    latency: null,
-    activityLogs: [],
     transcription: [],
-    localTranscription: [],
   });
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
-  const latencyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopSessionRef = useRef<(() => void) | null>(null);
   const hasReceivedWelcomeRef = useRef<boolean>(false);
   
-  // Local Whisper transcription hook
-  const { 
-    isRecording: isLocalRecording, 
-    isProcessing: isLocalProcessing,
-    startRecording: startLocalRecording,
-    stopRecording: stopLocalRecording,
-    cleanup: cleanupLocalWhisper
-  } = useLocalWhisper({
-    enabled: enabled && state.connectionStatus === "connected",
-    onTranscriptionUpdate: (localTranscription: LocalTranscription) => {
-      logActivity(`🎤 Local transcription: "${localTranscription.text}"`);
-      
-      // Add to local transcription state
-      setState(prev => ({
-        ...prev,
-        localTranscription: [...prev.localTranscription, localTranscription]
-      }));
-      
-      // Also add as a regular transcription message with local flag
-      const transcriptionMessage: TranscriptionMessage = {
-        id: localTranscription.id,
-        speaker: "You",
-        text: localTranscription.text,
-        timestamp: localTranscription.timestamp,
-        isLocal: true,
-        confidence: localTranscription.confidence
-      };
-      
-      addTranscriptionMessage("You", localTranscription.text, true, localTranscription.confidence);
-    }
-  });
-  
   // ✅ SESSION TIMEOUT SAFEGUARDS - Prevents runaway costs
-  // Track last activity time to detect idle sessions
   const lastActivityTimeRef = useRef<number>(Date.now());
   // Track session start time for hard limit calculation
   const sessionStartTimeRef = useRef<number>(0);
@@ -91,10 +48,6 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
   const logActivity = useCallback((message: string, data?: any) => {
     const timestamp = new Date().toISOString();
     console.log(`[useWebRTCVoice] ${timestamp} - ${message}`, data || '');
-    setState(prev => ({
-      ...prev,
-      activityLogs: [...prev.activityLogs, { timestamp: new Date().toLocaleTimeString(), message }],
-    }));
   }, []);
 
   const addTranscriptionMessage = useCallback((speaker: "Efa" | "You", text: string, isLocal?: boolean, confidence?: number) => {
@@ -168,8 +121,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
     try {
       logActivity("🚀 Starting voice session", { 
         company, 
-        ainagerId, 
-        selectedVoice: state.selectedVoice 
+        ainagerId
       });
       updateConnectionStatus("connecting");
 
@@ -177,7 +129,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
       logActivity("📡 Requesting ephemeral token from server", { 
         endpoint: "/api/session",
         payload: { 
-          voice: state.selectedVoice,
+          voice: "marin",
           model: "gpt-4o-realtime-preview-2024-10-01",
           company: company,
           ainagerId: ainagerId
@@ -187,7 +139,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          voice: state.selectedVoice,
+          voice: "marin",
           model: "gpt-4o-realtime-preview-2024-10-01",
           company: company,
           ainagerId: ainagerId
@@ -231,7 +183,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
           audioTracks: localStreamRef.current.getAudioTracks().length
         });
       } catch (micError) {
-        logActivity("❌ Microphone access denied", { error: micError.message });
+        logActivity("❌ Microphone access denied", { error: micError instanceof Error ? micError.message : String(micError) });
         throw new Error("Microphone access denied. Please allow microphone access and try again.");
       }
 
@@ -253,11 +205,8 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
         pc.addTrack(track, localStreamRef.current!);
       });
       
-      // Start local Whisper recording in parallel
-      logActivity("Starting local Whisper recording...");
       logActivity(`Local stream available: ${!!localStreamRef.current}`);
       logActivity(`Local stream tracks: ${localStreamRef.current?.getTracks().length || 0}`);
-      startLocalRecording(localStreamRef.current);
 
       // Step 5: Create data channel for events (optional but recommended)
       logActivity("📡 Creating data channel for OpenAI events");
@@ -274,41 +223,12 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
           sessionStartTime: new Date(sessionStartTimeRef.current).toISOString()
         });
         
-        // Generate company-specific instructions
-        const companyLower = company.toLowerCase();
-        let instructions = `You are an AI assistant working as the Enterprise Front/Friend Ainager for ${company}, a hypothetical company based in Dubai. You are professional, helpful, and knowledgeable about the company's services. `;
-
-        if (companyLower.includes("bakery")) {
-          instructions += `You work at a bakery that offers fresh bread baked daily from 6 AM, specialty pastries, custom cakes, gluten-free options, and catering services. Help customers with orders, answer questions about products, and provide information about our services.`;
-        } else if (companyLower.includes("restaurant")) {
-          instructions += `You work at a restaurant open 11 AM - 10 PM daily. Reservations are recommended for weekends. We serve traditional and contemporary cuisine with private dining rooms available. Help customers make reservations, answer menu questions, and provide dining information.`;
-        } else if (companyLower.includes("clinic") || companyLower.includes("health")) {
-          instructions += `You work at a medical clinic offering walk-in appointments, specialist consultations, health check-up packages, and 24/7 emergency services. Help patients schedule appointments, answer questions about services, and provide general information.`;
-        } else if (companyLower.includes("hotel")) {
-          instructions += `You work at a luxury hotel with modern amenities, conference facilities, fine dining, and a spa. Help guests with reservations, answer questions about facilities and services, and provide concierge assistance.`;
-        } else if (companyLower.includes("bank")) {
-          instructions += `You work at a bank offering personal and business banking, investment and loan services, 24/7 online banking, and financial advisory. Help customers with account inquiries, service information, and general banking questions.`;
-        } else if (companyLower.includes("tech") || companyLower.includes("digital") || companyLower.includes("systems")) {
-          instructions += `You work at a technology company providing custom software development, cloud infrastructure, IT consulting and support, and digital transformation services. Help clients understand our solutions and services.`;
-        } else if (companyLower.includes("industries") || companyLower.includes("solutions")) {
-          instructions += `You work at an industrial company providing equipment, machinery, custom manufacturing, quality control, and worldwide shipping. Help clients with product inquiries and service information.`;
-        } else if (companyLower.includes("logistics") || companyLower.includes("travel")) {
-          instructions += `You work at a logistics company offering domestic and international shipping, real-time tracking, express delivery, and warehouse services. Help customers with shipping inquiries and tracking information.`;
-        } else if (companyLower.includes("foods")) {
-          instructions += `You work at a food distribution company offering premium quality products, wholesale and retail distribution, fresh produce, and bulk order discounts. Help customers with product information and orders.`;
-        } else {
-          instructions += `You provide professional business services with a customer-focused approach. Help callers with their inquiries and provide information about your services.`;
-        }
-
-        instructions += ` Be conversational, warm, and helpful. Answer questions clearly and concisely. Since this is a demo, you can provide reasonable and professional responses based on the company name and type. Always mention that we are located in Dubai when relevant.`;
-        
-        // Send session configuration with company-specific instructions
+        // Send session configuration with instructions from server
         const sessionConfig = {
           type: "session.update",
           session: {
             modalities: ["text", "audio"],
-            instructions: instructions,
-            voice: state.selectedVoice,
+            voice: "marin",
             input_audio_format: "pcm16",
             output_audio_format: "pcm16",
             // DISABLED: input_audio_transcription (we use local Whisper instead)
@@ -328,8 +248,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
         
         logActivity("📤 Sending session configuration", { 
           company,
-          voice: state.selectedVoice,
-          instructionsLength: instructions.length,
+          voice: "marin",
           config: sessionConfig
         });
         
@@ -461,7 +380,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
         } catch (error) {
           logActivity(`❌ Failed to parse data channel message`, { 
             rawData: event.data.substring(0, 200) + '...',
-            error: error.message
+            error: error instanceof Error ? error.message : String(error)
           });
         }
       };
@@ -503,32 +422,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
             isSessionActive: true
           });
           
-          // Add initial greeting from EFA
-          const companyLower = company.toLowerCase();
-          let greeting = "Hello! Thank you for calling. How may I assist you today?";
-          
-          if (companyLower.includes("restaurant")) {
-            greeting = "Good day! Thank you for calling. What can I do for you?";
-          } else if (companyLower.includes("hotel")) {
-            greeting = "Welcome! Thank you for contacting us. How can I help?";
-          } else if (companyLower.includes("clinic") || companyLower.includes("health")) {
-            greeting = "Hello, you've reached our clinic. How may I assist you?";
-          } else if (companyLower.includes("bank")) {
-            greeting = "Hello! You've reached our banking services. What can I help you with?";
-          }
-          
-          logActivity("💬 Adding initial greeting", { 
-            greeting: greeting.substring(0, 50) + '...',
-            companyType: companyLower
-          });
-          addTranscriptionMessage("Efa", greeting);
-          
-          // Start latency monitoring
-          latencyCheckIntervalRef.current = setInterval(() => {
-            setState(prev => ({ ...prev, latency: Math.floor(Math.random() * 50) + 20 }));
-          }, 2000);
-          
-          logActivity("✅ WebRTC connection established, waiting for AI welcome message... with latency monitoring");
+          logActivity("✅ WebRTC connection established, waiting for AI welcome message...");
         } else if (pc.connectionState === "failed") {
           updateConnectionStatus("error");
           logActivity("❌ WebRTC connection failed", { 
@@ -600,7 +494,7 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
         stopSessionRef.current();
       }
     }
-  }, [company, ainagerId, state.selectedVoice, logActivity, updateConnectionStatus, addTranscriptionMessage, resetActivityTimer]);
+  }, [company, ainagerId, logActivity, updateConnectionStatus, addTranscriptionMessage, resetActivityTimer]);
 
   const stopSession = useCallback(() => {
     logActivity("🛑 Stopping session", { 
@@ -612,18 +506,8 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
     // ✅ Clear all timeout timers to prevent memory leaks
     clearAllTimeouts();
     
-    // Stop local Whisper recording
-    cleanupLocalWhisper();
-
     // Reset welcome message flag for next session
     hasReceivedWelcomeRef.current = false;
-
-    // Clear latency monitoring
-    if (latencyCheckIntervalRef.current) {
-      clearInterval(latencyCheckIntervalRef.current);
-      latencyCheckIntervalRef.current = null;
-      logActivity("⏱️ Latency monitoring stopped");
-    }
 
     // Close peer connection
     if (peerConnectionRef.current) {
@@ -703,8 +587,5 @@ export function useWebRTCVoice({ company, ainagerId, enabled }: UseWebRTCVoicePr
     stopSession,
     setAudioElement,
     addTranscriptionMessage,
-    // Local Whisper state
-    isLocalRecording,
-    isLocalProcessing,
   };
 }

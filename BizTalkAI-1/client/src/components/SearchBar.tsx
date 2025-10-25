@@ -19,7 +19,7 @@ export default function SearchBar({ value, onChange, onSearch }: SearchBarProps)
   };
 
   return (
-    <div className="flex gap-2 px-6 pb-5">
+    <div className="flex gap-2 px-6 pb-5 touch-manipulation">
       <div className="relative flex-1">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <input
@@ -30,12 +30,12 @@ export default function SearchBar({ value, onChange, onSearch }: SearchBarProps)
           placeholder="Search assistants..."
           aria-label="Search companies"
           data-testid="input-search"
-          className="w-full h-12 pl-11 pr-10 bg-muted/50 border border-input/50 rounded-2xl text-base outline-none transition-all duration-200 focus:border-primary focus:bg-background focus:shadow-lg focus:shadow-primary/10 placeholder:text-muted-foreground/50"
+          className="w-full h-12 pl-11 pr-10 bg-muted/50 border border-input/50 rounded-2xl text-base outline-none transition-all duration-200 focus:border-primary focus:bg-background focus:shadow-lg focus:shadow-primary/10 placeholder:text-muted-foreground/50 touch-manipulation"
         />
         {value && (
           <button
             onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors touch-manipulation"
             aria-label="Clear search"
           >
             <X className="w-4 h-4 text-muted-foreground" />
@@ -45,7 +45,7 @@ export default function SearchBar({ value, onChange, onSearch }: SearchBarProps)
       <Button
         onClick={onSearch}
         size="default"
-        className="h-12 px-5 rounded-2xl font-semibold shrink-0 shadow-lg hover:shadow-xl transition-all duration-200"
+        className="h-12 px-5 rounded-2xl font-semibold shrink-0 shadow-lg hover:shadow-xl transition-all duration-200 touch-manipulation min-w-[60px]"
         data-testid="button-search"
       >
         <Search className="w-4 h-4 sm:mr-2" />

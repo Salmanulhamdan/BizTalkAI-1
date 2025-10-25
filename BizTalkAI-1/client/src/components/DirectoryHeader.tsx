@@ -18,7 +18,7 @@ export default function DirectoryHeader() {
   }, []);
 
   return (
-    <div className="relative px-6 py-5">
+    <div className="relative px-6 py-5 touch-manipulation">
       {/* Subtle gradient background */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent"></div>
       

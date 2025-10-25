@@ -2,7 +2,7 @@ import { type User, type InsertUser, type Ainager, chatAinagerTable } from "@sha
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 // Database connection
 const connectionConfig = {

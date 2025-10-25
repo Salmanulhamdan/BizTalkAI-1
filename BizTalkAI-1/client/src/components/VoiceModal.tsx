@@ -12,112 +12,6 @@ interface VoiceModalProps {
   onClose: () => void;
 }
 
-const getCompanyContent = (company: string) => {
-  const companyLower = company.toLowerCase();
-  
-  if (companyLower.includes("bakery")) {
-    return {
-      greeting: "Hello! Welcome to our bakery. How can I help you today?",
-      info: [
-        "Fresh bread baked daily from 6 AM",
-        "Specialty pastries and custom cakes available",
-        "Gluten-free options on request",
-        "Catering services for events"
-      ]
-    };
-  } else if (companyLower.includes("restaurant")) {
-    return {
-      greeting: "Good day! Thank you for calling. What can I do for you?",
-      info: [
-        "Open 11 AM - 10 PM daily",
-        "Reservations recommended for weekends",
-        "Traditional and contemporary cuisine",
-        "Private dining rooms available"
-      ]
-    };
-  } else if (companyLower.includes("clinic") || companyLower.includes("health")) {
-    return {
-      greeting: "Hello, you've reached our clinic. How may I assist you?",
-      info: [
-        "Walk-in appointments welcome",
-        "Specialist consultations available",
-        "Health check-up packages offered",
-        "Emergency services 24/7"
-      ]
-    };
-  } else if (companyLower.includes("hotel")) {
-    return {
-      greeting: "Welcome! Thank you for contacting us. How can I help?",
-      info: [
-        "Luxury accommodations with modern amenities",
-        "Conference facilities for business events",
-        "Fine dining restaurant on premises",
-        "Spa and wellness center available"
-      ]
-    };
-  } else if (companyLower.includes("bank")) {
-    return {
-      greeting: "Hello! You've reached our banking services. What can I help you with?",
-      info: [
-        "Personal and business banking solutions",
-        "Investment and loan services",
-        "24/7 online banking available",
-        "Financial advisory services"
-      ]
-    };
-  } else if (companyLower.includes("tech") || companyLower.includes("digital") || companyLower.includes("systems")) {
-    return {
-      greeting: "Hi there! Welcome to our tech solutions. How can I assist?",
-      info: [
-        "Custom software development",
-        "Cloud infrastructure solutions",
-        "IT consulting and support",
-        "Digital transformation services"
-      ]
-    };
-  } else if (companyLower.includes("industries") || companyLower.includes("solutions")) {
-    return {
-      greeting: "Hello! Thank you for reaching out. What can I do for you?",
-      info: [
-        "Industrial equipment and machinery",
-        "Custom manufacturing solutions",
-        "Quality control and testing",
-        "Worldwide shipping available"
-      ]
-    };
-  } else if (companyLower.includes("logistics") || companyLower.includes("travel")) {
-    return {
-      greeting: "Welcome! How can we help with your logistics needs today?",
-      info: [
-        "Domestic and international shipping",
-        "Real-time package tracking",
-        "Express delivery options",
-        "Warehouse and distribution services"
-      ]
-    };
-  } else if (companyLower.includes("foods")) {
-    return {
-      greeting: "Hello! Welcome to our food services. What can I help you with?",
-      info: [
-        "Premium quality food products",
-        "Wholesale and retail distribution",
-        "Fresh produce delivered daily",
-        "Bulk order discounts available"
-      ]
-    };
-  } else {
-    return {
-      greeting: "Hello! Thank you for calling. How may I assist you today?",
-      info: [
-        "Professional business services",
-        "Customer-focused solutions",
-        "Quality guaranteed",
-        "Serving the community since years"
-      ]
-    };
-  }
-};
-
 export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(true);
@@ -245,7 +139,6 @@ export default function VoiceModal({ ainager, isOpen, onClose }: VoiceModalProps
 
   const displayName = formatAinagerName(ainager.ainagerName);
   const companyInitial = displayName.charAt(0).toUpperCase();
-  const content = getCompanyContent(ainager.ainagerName);
 
   // Determine visual state based on connection state
   const visualState = state.connectionStatus === "connecting" 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { type Ainager } from "@shared/schema";
 import DirectoryHeader from "@/components/DirectoryHeader";
@@ -6,7 +6,7 @@ import SearchBar from "@/components/SearchBar";
 import CompanyList from "@/components/CompanyList";
 import { useAinagers } from "@/hooks/useAinagers";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowUp } from "lucide-react";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -14,6 +14,8 @@ export default function Home() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [allAinagers, setAllAinagers] = useState<Ainager[]>([]);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const limit = page === 1 ? 10 : 5; // First page: 10, subsequent: 5
   const { data, isLoading, error, isFetching } = useAinagers(page, limit, debouncedSearch);
@@ -48,6 +50,29 @@ export default function Home() {
     }
   }, [data, page]);
 
+  // Scroll detection for scroll-to-top button
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      const scrollTop = scrollContainer.scrollTop;
+      setShowScrollTop(scrollTop > 200);
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const handleCompanyClick = (ainager: Ainager) => {
     setLocation("/chat", { state: { ainager } });
   };
@@ -67,7 +92,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
         <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
-          <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-md border-b border-border/50 shadow-sm">
+          <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg">
             <DirectoryHeader />
             <SearchBar
               value={searchValue}
@@ -75,7 +100,7 @@ export default function Home() {
               onSearch={handleSearch}
             />
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center py-20">
+          <div ref={scrollContainerRef} className="flex-1 flex flex-col items-center justify-center py-20">
             <div className="relative">
               <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -98,7 +123,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
         <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
-          <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-md border-b border-border/50 shadow-sm">
+          <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg">
             <DirectoryHeader />
             <SearchBar
               value={searchValue}
@@ -106,7 +131,7 @@ export default function Home() {
               onSearch={handleSearch}
             />
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center py-20 px-6">
+          <div ref={scrollContainerRef} className="flex-1 flex flex-col items-center justify-center py-20 px-6">
             <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-6 relative">
               <svg className="w-10 h-10 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -149,7 +174,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
       <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
-        <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-md border-b border-border/50 shadow-lg">
+        <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg">
           <DirectoryHeader />
           <SearchBar
             value={searchValue}
@@ -158,7 +183,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto mobile-scroll smooth-scroll">
           {/* Inline Error Banner (shown when there's data but pagination/refresh fails) */}
           {error && allAinagers.length > 0 && (
             <div className="mx-4 mt-4 mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
@@ -238,6 +263,17 @@ export default function Home() {
             </>
           )}
         </div>
+
+        {/* Scroll to Top Button */}
+        {showScrollTop && (
+          <button
+            onClick={scrollToTop}
+            className="scroll-to-top flex items-center justify-center"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </button>
+        )}
       </main>
     </div>
   );

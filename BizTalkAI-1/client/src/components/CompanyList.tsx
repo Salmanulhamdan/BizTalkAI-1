@@ -8,7 +8,7 @@ interface CompanyListProps {
 
 export default function CompanyList({ ainagers, onCompanyClick }: CompanyListProps) {
   return (
-    <div className="px-5 py-3" data-testid="list-companies">
+    <div className="px-5 py-3 touch-manipulation" data-testid="list-companies">
       {/* Section Header */}
       <div className="px-2 pb-3 flex items-center justify-between">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
