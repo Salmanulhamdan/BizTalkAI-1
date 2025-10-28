@@ -106,7 +106,7 @@ export async function setupRealtimeWebSocket(
   openaiWs.on("error", (error) => {
     console.error(`[RealtimeWS] ❌ OpenAI WebSocket error`, { 
       error: error.message,
-      code: error.code,
+      code: (error as any).code,
       timestamp: new Date().toISOString()
     });
     
@@ -167,7 +167,7 @@ export async function setupRealtimeWebSocket(
   clientWs.on("error", (error) => {
     console.error(`[RealtimeWS] ❌ Client WebSocket error`, { 
       error: error.message,
-      code: error.code,
+      code: (error as any).code,
       timestamp: new Date().toISOString()
     });
     
