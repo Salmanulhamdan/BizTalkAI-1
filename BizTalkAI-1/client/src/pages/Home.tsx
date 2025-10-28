@@ -4,17 +4,22 @@ import { type Ainager } from "@shared/schema";
 import DirectoryHeader from "@/components/DirectoryHeader";
 import SearchBar from "@/components/SearchBar";
 import CompanyList from "@/components/CompanyList";
+import UserProfile from "@/components/UserProfile";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAinagers } from "@/hooks/useAinagers";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowUp } from "lucide-react";
+import { Loader2, ArrowUp, User, LogOut } from "lucide-react";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const { user, logout } = useAuth();
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [allAinagers, setAllAinagers] = useState<Ainager[]>([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const limit = page === 1 ? 10 : 5; // First page: 10, subsequent: 5
@@ -172,17 +177,49 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
-      <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-0 sm:mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
-        {/* Fixed Header */}
-        <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg flex-shrink-0">
-          <DirectoryHeader />
-          <SearchBar
-            value={searchValue}
-            onChange={setSearchValue}
-            onSearch={() => console.log("Search triggered")}
-          />
-        </div>
+    <ProtectedRoute>
+      <div className="h-screen flex justify-center bg-gradient-to-br from-background via-muted/20 to-background">
+        <main className="w-full max-w-[480px] bg-card/95 backdrop-blur-sm shadow-2xl mx-0 sm:mx-3 my-0 sm:my-6 sm:rounded-3xl overflow-hidden flex flex-col border border-border/50">
+          {/* Fixed Header */}
+          <div className="sticky-nav bg-card/90 backdrop-blur-md border-b border-border/50 shadow-lg flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-3">
+              <DirectoryHeader />
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={() => setShowProfile(!showProfile)}
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center space-x-1"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:inline">{user?.firstName}</span>
+                </Button>
+                <Button
+                  onClick={() => {
+                    logout();
+                    setLocation('/login');
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <SearchBar
+              value={searchValue}
+              onChange={setSearchValue}
+              onSearch={() => console.log("Search triggered")}
+            />
+          </div>
+
+        {/* User Profile Section */}
+        {showProfile && (
+          <div className="px-4 py-3 border-b border-border/50">
+            <UserProfile />
+          </div>
+        )}
 
         {/* Scrollable Content */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto mobile-scroll smooth-scroll scrollbar-hide">
@@ -282,5 +319,6 @@ export default function Home() {
         )}
       </main>
     </div>
+    </ProtectedRoute>
   );
 }

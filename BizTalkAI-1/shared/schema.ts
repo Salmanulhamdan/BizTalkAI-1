@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { mysqlTable, varchar, text, timestamp } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, text, timestamp, int, datetime, boolean } from "drizzle-orm/mysql-core";
 
 // Chat Ainager table schema - matching actual database structure
 export const chatAinagerTable = mysqlTable("chat_ainager", {
@@ -134,3 +134,42 @@ export const insertUserSchema = userSchema.omit({ id: true, createdAt: true });
 
 export type User = z.infer<typeof userSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+// Auth User table schema - matching actual database structure
+export const authUserTable = mysqlTable("auth_user", {
+  id: int("id").primaryKey().autoincrement(),
+  password: varchar("password", { length: 128 }).notNull(),
+  lastLogin: datetime("last_login", { mode: 'date' }),
+  isSuperuser: boolean("is_superuser").notNull().default(false),
+  username: varchar("username", { length: 150 }).notNull(),
+  firstName: varchar("first_name", { length: 150 }).notNull(),
+  lastName: varchar("last_name", { length: 150 }).notNull(),
+  email: varchar("email", { length: 254 }).notNull(),
+  phoneNumber: varchar("phone_number", { length: 15 }),
+  isStaff: boolean("is_staff").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  dateJoined: datetime("date_joined", { mode: 'date' }).notNull(),
+});
+
+// Zod schema for auth user validation
+export const authUserSchema = z.object({
+  id: z.number().optional(),
+  password: z.string(),
+  lastLogin: z.date().optional(),
+  isSuperuser: z.boolean().default(false),
+  username: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string().email(),
+  phoneNumber: z.string().optional(),
+  isStaff: z.boolean().default(false),
+  isActive: z.boolean().default(true),
+  dateJoined: z.date(),
+});
+
+export const insertAuthUserSchema = authUserSchema.omit({ id: true });
+export const updateAuthUserSchema = authUserSchema.partial().omit({ id: true, dateJoined: true });
+
+export type AuthUser = z.infer<typeof authUserSchema>;
+export type InsertAuthUser = z.infer<typeof insertAuthUserSchema>;
+export type UpdateAuthUser = z.infer<typeof updateAuthUserSchema>;
