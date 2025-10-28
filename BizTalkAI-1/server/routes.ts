@@ -2,11 +2,15 @@ import type { Express } from "express";
 import type { Multer } from "multer";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import authRoutes from "./authRoutes.js";
 
 // Helper function to generate company-specific instructions
 
 
 export async function registerRoutes(app: Express, upload: Multer): Promise<Server> {
+  // Authentication routes
+  app.use("/api/auth", authRoutes);
+
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     const hasApiKey = !!process.env.OPENAI_API_KEY;
